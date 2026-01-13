@@ -9,12 +9,213 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
+// ========== 角色枚举 ==========
+// SQLite 不支持 Enum，改用 String
+// enum Role {
+//   SUPER_ADMIN
+//   LANDLORD
+//   TENANT
+// }
+
+// 用户表：管理员 房东 租客 [所有有登录权限的都在这个表]
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id          String    @id @default(uuid())
+  name        String
+  phone       String    @unique
+  email       String?   @unique
+  password    String // bcrypt encrypted password
+  role        String    @default("TENANT") // 角色, SUPER_ADMIN ｜ LANDLORD | TENANT
+  status      String    @default("active") // 状态, active活跃 | inactive已停用 | locked 已锁定
+  lastLoginAt DateTime? // 最后登录时间
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 关联业务档案（房东/租客）
+  landlordProfile Landlord? @relation("UserLandlord")
+
+  tenantProfile Tenant? @relation("UserTenant")
+}
+
+// 房源
+model House {
+  id           String   @id @default(uuid())
+  code         String   @unique // 如 A-301
+  address      String
+  area         Float
+  monthlyRent  Float // 默认月租金
+  waterRate    Float    @default(3.0) // 水费单价（元/吨）, 默认3元/吨
+  electricRate Float    @default(0.8) // 电费单价（元/吨）, 默认0.8元/吨
+  status       String   @default("available") // 状态, 可用available|租用rented|维护maintenance
+
+  remark       String? // 备注
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // 关联
+  contracts     LeaseContract[] // 租赁合同
+  bills         Bill[] // 账单（房租 + 水电）
+  meterReadings MeterReading[] // 水电抄表记录（按月）
+  maintenances  Maintenance[] // 报修工单
+
+  // 房东关联
+  landlordId String
+  landlord   Landlord @relation(fields: [landlordId], references: [id])
+}
+
+// 房东 【仅存拓展信息】
+model Landlord {
+  id     String  @id @default(uuid())
+  remark String? // 备注
+
+  // 反向关联到 User
+  user   User   @relation("UserLandlord", fields: [userId], references: [id])
+  userId String @unique // 一个房东最多是一个用户
+
+  // 业务关联
+  houses House[] // 房东的房源
+}
+
+// 租客 【仅存租客特有信息】
+model Tenant {
+  id               String  @id @default(uuid())
+  idCard           String  @unique
+  emergencyContact String? // 紧急联系人
+  emergencyPhone   String? // 紧急联系人电话
+  remark           String? // 备注
+
+  // 反向关联到 User
+  user   User   @relation("UserTenant", fields: [userId], references: [id])
+  userId String @unique // 一个租客最多是一个用户
+
+  // 关联
+  contracts    LeaseContract[] // 租赁合同
+  bills        Bill[] // 账单（房租 + 水电）
+  maintenances Maintenance[] // 报修工单
+}
+
+// 租赁合同
+model LeaseContract {
+  id          String   @id @default(uuid())
+  contractNo  String   @unique // 合同编号，如 HT202512001
+  startDate   DateTime
+  endDate     DateTime
+  deposit     Float // 押金
+  monthlyRent Float // 合同约定月租（可覆盖 House 默认值）
+  status      String   @default("active") // 状态, 正常 active | 已过期 expired | 已终止 terminated
+  pdfUrl      String // 合同PDF URL(存储 oss)
+  email       String? // 租客接收合同邮箱（可选, 若不提供, 则默认不发送电子合同）
+  remark      String? // 备注
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 外键关联
+  houseId String // 房源ID
+  house   House  @relation(fields: [houseId], references: [id]) // 房源关联
+
+  tenantId String // 租客ID
+  tenant   Tenant @relation(fields: [tenantId], references: [id]) // 租客关联
+
+  // 反向关联
+  bills Bill[] // 账单（房租 + 水电）
+}
+
+// 水电抄表记录（按月）
+model MeterReading {
+  id              String   @id @default(uuid())
+  month           DateTime // 代表哪个月的读数，如 2025-12-01
+  waterPrev       Float    @default(0) // 上月抄表数（吨）-- 水
+  waterCurrent    Float    @default(0) // 当前抄表数（吨）-- 水
+  waterUsed       Float    @default(0) // 当前水用量（吨）-- 水
+  electricPrev    Float    @default(0) // 上月抄表数（度）-- 电
+  electricCurrent Float    @default(0) // 当前抄表数（度）-- 电
+  electricUsed    Float    @default(0) // 当前电用量（度）-- 电
+  remark          String? // 备注
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // 外键关联
+  houseId String // 房源ID
+  house   House  @relation(fields: [houseId], references: [id]) // 房源关联
+  bills   Bill[]
+
+  // 约束：同一房屋每月只能有一条记录
+  @@unique([houseId, month])
+}
+
+// 账单（房租 + 水电）
+model Bill {
+  id      String   @id @default(uuid())
+  billNo  String   @unique // 账单编号，如 BILL202512-A301
+  month   DateTime // 代表哪个月的账单，如 2025-12-01
+  dueDate DateTime // 应付截止日期，如 2026-01-01
+  status  String   @default("unpaid") // 状态, 未支付 unpaid | 已支付 paid | 逾期 overdue
+
+  rent         Float    @default(0) // 房租（元）
+  waterUsed    Float    @default(0) // 水用量（吨）-- 水
+  waterFee     Float    @default(0) // 水费（元）-- 水
+  electricUsed Float    @default(0) // 电用量（度）-- 电
+  electricFee  Float    @default(0) // 电费（元）-- 电
+  totalFee     Float    @default(0) // 总费用（元）
+  remark       String? // 备注
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // 外键关联
+  houseId    String // 房源ID
+  house      House         @relation(fields: [houseId], references: [id]) // 房源关联
+  tenantId   String // 租客ID
+  tenant     Tenant        @relation(fields: [tenantId], references: [id]) // 租客关联
+  contractId String // 合同ID
+  contract   LeaseContract @relation(fields: [contractId], references: [id]) // 合同关联
+
+  // 可选：关联抄表（非必须，但方便追溯）
+  readingId String? // 抄表ID
+  reading   MeterReading? @relation(fields: [readingId], references: [id]) // 抄表关联
+
+  // 反向关联
+  payments PaymentRecord[] // 支付记录  
+}
+
+// 付款记录（即使手动转账，也要有记录）
+model PaymentRecord {
+  id          String   @id @default(uuid())
+  paymentNo   String   @unique // 付款编号，如 P202512001
+  amount      Float    @default(0) // 付款金额（元）
+  paymentDate DateTime // 付款日期，如 2025-12-05
+  method      String   @default("cash") // 付款方式, 现金 cash | 支付宝 alipay | 微信 wechat | 银行转账 bank
+  proofImage  String? // 付款凭证（图片URL, oss）
+  status      String   @default("pending") // 状态, pending 支付中 | finished 已支付 | refunding 退款中 ｜ refunded 已退款
+
+  remark    String? // 备注
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 外键关联
+  billId String // 账单ID
+  bill   Bill   @relation(fields: [billId], references: [id]) // 账单关联
+}
+
+// 报修工单
+model Maintenance {
+  id            String  @id @default(uuid())
+  maintenanceNo String  @unique // 工单编号，如 RT202512001
+  title         String? // 工单标题
+  description   String? // 工单描述
+  images        String? // 工单图片（图片URL, oss）JSON字符串
+  status        String  @default("pending") // 状态, pending 待处理 | processing 处理中 | completed 已完成 | canceled 已取消
+
+  remark    String? // 备注
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 外键关联
+  houseId  String // 房源ID
+  house    House  @relation(fields: [houseId], references: [id]) // 房源关联
+  tenantId String // 租客ID
+  tenant   Tenant @relation(fields: [tenantId], references: [id]) // 租客关联
 }
