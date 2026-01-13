@@ -97,3 +97,15 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Generate a new resource
+
+To generate a new resource, run the following command:
+
+```bash
+$ nest generate resource <name>
+```
+
+- 运行 nest g res products 。
+- CLI 会询问传输层（Transport layer），通常选 REST API 。
+- CLI 会询问是否生成 CRUD 入口点，通常选 Yes 。
