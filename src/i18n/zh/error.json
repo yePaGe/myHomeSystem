@@ -1,0 +1,20 @@
+{
+  "auth": {
+    "exists": {
+      "account": "账号已存在",
+      "phone": "手机号已存在",
+      "id_card": "身份证号已存在"
+    },
+    "not_exists": {
+      "account": "账号不存在",
+      "phone": "手机号不存在",
+      "id_card": "身份证号不存在"
+    },
+    "missing_fields": "请填写完整信息",
+    "password_error": "密码错误",
+    "account_pwd_error": "账号或密码错误",
+    "token_expired": "token 过期",
+    "token_invalid": "token 无效",
+    "logout_success": "退出登录成功"
+  }
+}

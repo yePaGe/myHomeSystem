@@ -1,34 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { RegisterLandlordDto } from './dto/register-landlord.dto';
+import { RegisterTenantDto } from './dto/register-tenant.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
+  // 注册房东
+  @Post('register/landlord')
+  registerLandlord(@Body() registerLandlordDto: RegisterLandlordDto) {
+    return this.authService.registerLandlord(registerLandlordDto);
   }
 
-  @Get()
-  findAll() {
-    return this.authService.findAll();
+  // 注册租户
+  @Post('register/tenant')
+  registerTenant(@Body() registerTenantDto: RegisterTenantDto) {
+    return this.authService.registerTenant(registerTenantDto);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
+  // 登录
+  @Post('login/landlord')
+  loginLandlord(@Body() loginDto: LoginDto) {
+    return this.authService.login({ ...loginDto, role: 'LANDLORD' });
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
+  // 登录
+  @Post('login/tenant')
+  loginTenant(@Body() loginDto: LoginDto) {
+    return this.authService.login({ ...loginDto, role: 'TENANT' });
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
+  // 退出登录
+  @Post('logout')
+  logout() {
+    return this.authService.logout();
   }
 }

@@ -1,0 +1,19 @@
+{
+  "auth": {
+    "exists": {
+      "account": "Account already exists",
+      "phone": "Phone number already exists",
+      "id_card": "ID card already exists"
+    },
+    "not_exists": {
+      "account": "Account not found",
+      "phone": "Phone number not found",
+      "id_card": "ID card not found"
+    },
+    "missing_fields": "Please fill in all required fields",
+    "password_error": "Password error",
+    "account_pwd_error": "Account or password error",
+    "token_expired": "Token is expired",
+    "token_invalid": "Token is invalid"
+  }
+}

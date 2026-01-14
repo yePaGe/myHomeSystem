@@ -25,6 +25,7 @@ datasource db {
 model User {
   id          String    @id @default(uuid())
   name        String
+  account     String    @unique             // 登录时候用的账号, 手机号或邮箱或自定义，必须是全系统唯一
   phone       String    @unique
   email       String?   @unique
   password    String // bcrypt encrypted password

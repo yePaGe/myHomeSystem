@@ -29,6 +29,7 @@ export class UsersService {
   async create(createUserDto: CreateUsersDto) {
     const data: Prisma.UserCreateInput = {
       name: createUserDto.name,
+      account: createUserDto.account,
       phone: createUserDto.phone,
       password: createUserDto.password, // 注意：实际生产中应加密
       role: createUserDto.role,
@@ -66,6 +67,7 @@ export class UsersService {
       },
       data: {
         name: createUserDto.name,
+        account: createUserDto.account,
         phone: createUserDto.phone,
         password: createUserDto.password,
         role: createUserDto.role,

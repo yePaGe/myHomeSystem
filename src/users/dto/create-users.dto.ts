@@ -1,6 +1,7 @@
 export class CreateUsersDto {
   id?: string;
   name: string;
+  account: string;
   phone: string;
   password: string;
   role: string;

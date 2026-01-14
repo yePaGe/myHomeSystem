@@ -109,3 +109,7 @@ $ nest generate resource <name>
 - 运行 nest g res products 。
 - CLI 会询问传输层（Transport layer），通常选 REST API 。
 - CLI 会询问是否生成 CRUD 入口点，通常选 Yes 。
+
+## Database Migration Guide
+
+Please verify [DB_MIGRATION.md](DB_MIGRATION.md) to learn how to change the database schema.
